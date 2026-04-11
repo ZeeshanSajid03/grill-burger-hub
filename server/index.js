@@ -12,9 +12,22 @@ const customerRoutes = require('./routes/customer');
 
 const app        = express();
 const httpServer = http.createServer(app);
-const io         = new Server(httpServer, { cors: { origin: '*' } });
+const io = new Server(httpServer, {
+  cors: {
+    origin: [
+      'http://localhost:5173',
+      'https://grill-burger-hub.vercel.app'
+    ]
+  }
+});
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://grill-burger-hub.vercel.app'
+  ]
+}));
+
 app.use(express.json());
 app.set('io', io);
 
