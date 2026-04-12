@@ -7,17 +7,17 @@ const orderSchema = new mongoose.Schema({
     ref: 'Customer',
     default: null
   },
-  customerName:    { type: String, required: true },
-  customerPhone:   { type: String },
+  customerName: { type: String, required: true },
+  customerPhone: { type: String },
   items: [
     {
       menuItem: { type: mongoose.Schema.Types.ObjectId, ref: 'MenuItem' },
-      name:     { type: String },
-      price:    { type: Number },
+      name: { type: String },
+      price: { type: Number },
       quantity: { type: Number, default: 1 }
     }
   ],
-  total:    { type: Number, required: true },
+  total: { type: Number, required: true },
   status: {
     type: String,
     enum: ['Pending', 'Preparing', 'Ready', 'Out for Delivery', 'Completed'],
@@ -29,7 +29,10 @@ const orderSchema = new mongoose.Schema({
     default: 'Takeaway'
   },
   deliveryAddress: { type: String },
-  createdAt:       { type: Date, default: Date.now }
+  deliveryCity: { type: String },
+  deliveryArea: { type: String },
+  deliveryFee: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
 });
 
 module.exports = mongoose.model('Order', orderSchema);
