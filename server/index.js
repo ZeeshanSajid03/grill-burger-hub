@@ -10,6 +10,7 @@ const orderRoutes    = require('./routes/order');
 const authRoutes     = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 const deliveryZoneRoutes = require('./routes/deliveryZones');
+const riderRoutes = require('./routes/riders');
 
 const app        = express();
 const httpServer = http.createServer(app);
@@ -37,6 +38,7 @@ app.use('/api/orders',    orderRoutes);
 app.use('/api/auth',      authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/delivery-zones', deliveryZoneRoutes);
+app.use('/api/riders', riderRoutes);
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);

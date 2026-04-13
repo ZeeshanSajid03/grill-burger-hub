@@ -32,6 +32,11 @@ const orderSchema = new mongoose.Schema({
   deliveryCity: { type: String },
   deliveryArea: { type: String },
   deliveryFee: { type: Number, default: 0 },
+  rider: {
+    name: { type: String, default: '' },
+    phone: { type: String, default: '' },
+    id: { type: mongoose.Schema.Types.ObjectId, ref: 'Rider', default: null }
+  },
   createdAt: { type: Date, default: Date.now }
 });
 

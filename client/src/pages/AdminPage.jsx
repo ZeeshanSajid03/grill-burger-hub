@@ -55,6 +55,7 @@ export default function AdminPage() {
   const { isLoggedIn, authHeader, logout } = useAuth()
   const navigate = useNavigate()
 
+  // Menu state
   const [menuItems, setMenuItems]       = useState([])
   const [orders, setOrders]             = useState([])
   const [form, setForm]                 = useState(emptyForm)
@@ -65,10 +66,16 @@ export default function AdminPage() {
   const [activeTab, setActiveTab]       = useState('menu')
   const [graphRange, setGraphRange]     = useState('weekly')
 
+  // Delivery zone state
   const [zones, setZones]                 = useState([])
   const [zoneForm, setZoneForm]           = useState({ city: '', area: '', deliveryFee: '', _free: false })
   const [editingZoneId, setEditingZoneId] = useState(null)
   const [savingZone, setSavingZone]       = useState(false)
+
+  // Rider state
+  const [riders, setRiders]           = useState([])
+  const [riderForm, setRiderForm]     = useState({ name: '', phone: '' })
+  const [savingRider, setSavingRider] = useState(false)
 
   useEffect(() => {
     if (!isLoggedIn) navigate('/dashboard')
@@ -78,6 +85,7 @@ export default function AdminPage() {
     fetchMenu()
     fetchOrders()
     fetchZones()
+    fetchRiders()
   }, [])
 
   const fetchMenu = async () => {
@@ -95,6 +103,12 @@ export default function AdminPage() {
     setZones(res.data)
   }
 
+  const fetchRiders = async () => {
+    const res = await axios.get(`${API_URL}/api/riders`)
+    setRiders(res.data)
+  }
+
+  // Menu handlers
   const handleImageChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -172,6 +186,7 @@ export default function AdminPage() {
     setImagePreview('')
   }
 
+  // Zone handlers
   const handleZoneSubmit = async () => {
     if (!zoneForm.city || !zoneForm.area) return alert('City and area required')
     if (zoneForm.deliveryFee === '' && !zoneForm._free) return alert('Enter a delivery fee or set as free')
@@ -231,6 +246,37 @@ export default function AdminPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  // Rider handlers
+  const handleRiderSubmit = async () => {
+    if (!riderForm.name || !riderForm.phone) return alert('Name and phone required')
+    setSavingRider(true)
+    try {
+      await axios.post(`${API_URL}/api/riders`, riderForm, { headers: authHeader })
+      setRiderForm({ name: '', phone: '' })
+      fetchRiders()
+    } catch (err) {
+      alert('Error saving rider')
+    } finally {
+      setSavingRider(false)
+    }
+  }
+
+  const handleDeleteRider = async (id) => {
+    if (!confirm('Delete this rider?')) return
+    await axios.delete(`${API_URL}/api/riders/${id}`, { headers: authHeader })
+    fetchRiders()
+  }
+
+  const handleToggleRider = async (id) => {
+    await axios.patch(
+      `${API_URL}/api/riders/${id}/availability`,
+      {},
+      { headers: authHeader }
+    )
+    fetchRiders()
+  }
+
+  // Analytics
   const getSalesData = () => {
     const now  = new Date()
     const days = graphRange === 'weekly' ? 7 : 30
@@ -307,7 +353,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
-        {['menu', 'analytics', 'delivery'].map(tab => (
+        {['menu', 'analytics', 'delivery', 'riders'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -317,7 +363,10 @@ export default function AdminPage() {
                 : 'bg-zinc-800 text-zinc-400 hover:text-white'
               }`}
           >
-            {tab === 'menu' ? '🍔 Menu' : tab === 'analytics' ? '📊 Analytics' : '🛵 Delivery Zones'}
+            {tab === 'menu'      ? '🍔 Menu'           :
+             tab === 'analytics' ? '📊 Analytics'       :
+             tab === 'delivery'  ? '🛵 Delivery Zones'  :
+                                   '🧑‍💼 Riders'}
           </button>
         ))}
       </div>
@@ -609,7 +658,6 @@ export default function AdminPage() {
                 </div>
               </div>
             </div>
-
             <div className="flex gap-3 mt-5">
               <button
                 onClick={handleZoneSubmit}
@@ -629,7 +677,6 @@ export default function AdminPage() {
             </div>
           </div>
 
-          {/* Zones List */}
           <div>
             <h2 className="font-bold text-white text-lg mb-4">
               Delivery Zones ({zones.length})
@@ -681,6 +728,100 @@ export default function AdminPage() {
                         onClick={() => handleDeleteZone(zone._id)}
                         className="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg transition-colors"
                       >🗑️</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── RIDERS TAB ── */}
+      {activeTab === 'riders' && (
+        <div className="space-y-8">
+
+          {/* Add Rider Form */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h2 className="font-bold text-white text-lg mb-6">➕ Add Rider</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Name *</label>
+                <input
+                  type="text"
+                  value={riderForm.name}
+                  onChange={e => setRiderForm({ ...riderForm, name: e.target.value })}
+                  placeholder="e.g. Ahmed Khan"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Phone *</label>
+                <input
+                  type="text"
+                  value={riderForm.phone}
+                  onChange={e => setRiderForm({ ...riderForm, phone: e.target.value })}
+                  placeholder="03xx-xxxxxxx"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleRiderSubmit}
+              disabled={savingRider}
+              className="mt-5 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-colors"
+            >
+              {savingRider ? 'Saving...' : 'Add Rider'}
+            </button>
+          </div>
+
+          {/* Riders List */}
+          <div>
+            <h2 className="font-bold text-white text-lg mb-4">
+              Riders ({riders.length})
+            </h2>
+            {riders.length === 0 ? (
+              <div className="text-center py-12 text-zinc-500">
+                <p className="text-3xl mb-3">🛵</p>
+                <p>No riders added yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {riders.map(rider => (
+                  <div
+                    key={rider._id}
+                    className={`bg-zinc-900 border rounded-2xl px-5 py-4 flex items-center justify-between gap-4 transition-all
+                      ${rider.available ? 'border-zinc-800' : 'border-zinc-700 opacity-60'}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                        <span className="text-lg">🛵</span>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">{rider.name}</p>
+                        <p className="text-zinc-400 text-sm">{rider.phone}</p>
+                      </div>
+                      <span className={`text-xs px-2.5 py-1 rounded-full font-medium
+                        ${rider.available
+                          ? 'bg-green-500/10 text-green-400'
+                          : 'bg-red-500/10 text-red-400'
+                        }`}>
+                        {rider.available ? 'Available' : 'Off Duty'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => handleToggleRider(rider._id)}
+                        className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg transition-colors"
+                      >
+                        {rider.available ? '🔴 Off Duty' : '🟢 On Duty'}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRider(rider._id)}
+                        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg transition-colors"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
                 ))}

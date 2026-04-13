@@ -83,4 +83,28 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Assign rider to order
+router.patch('/:id/assign-rider', async (req, res) => {
+  try {
+    const { riderId, riderName, riderPhone } = req.body;
+    const updated = await Order.findByIdAndUpdate(
+      req.params.id,
+      {
+        status: 'Out for Delivery',
+        rider: {
+          id:    riderId,
+          name:  riderName,
+          phone: riderPhone
+        }
+      },
+      { new: true }
+    );
+    const io = req.app.get('io');
+    io.emit('order_updated', updated);
+    res.json(updated);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
 module.exports = router;

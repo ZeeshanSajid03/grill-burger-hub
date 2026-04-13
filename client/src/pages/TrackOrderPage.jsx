@@ -7,24 +7,24 @@ import socket from '../socket'
 const steps = ['Pending', 'Preparing', 'Ready', 'Out for Delivery', 'Completed']
 
 const stepIcons = {
-  Pending:            '🕐',
-  Preparing:          '👨‍🍳',
-  Ready:              '✅',
+  Pending: '🕐',
+  Preparing: '👨‍🍳',
+  Ready: '✅',
   'Out for Delivery': '🛵',
-  Completed:          '🎉'
+  Completed: '🎉'
 }
 
 const stepDesc = {
-  Pending:            'Order received, waiting for confirmation',
-  Preparing:          'Your food is being prepared',
-  Ready:              'Your order is ready for pickup',
+  Pending: 'Order received, waiting for confirmation',
+  Preparing: 'Your food is being prepared',
+  Ready: 'Your order is ready for pickup',
   'Out for Delivery': 'Your order is on its way',
-  Completed:          'Order delivered. Enjoy your meal!'
+  Completed: 'Order delivered. Enjoy your meal!'
 }
 
 export default function TrackOrderPage() {
   const { orderNumber } = useParams()
-  const [order, setOrder]   = useState(null)
+  const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
 
@@ -62,7 +62,7 @@ export default function TrackOrderPage() {
   )
 
   const currentStep = steps.indexOf(order.status)
-  const isDelivery  = order.orderType === 'Delivery'
+  const isDelivery = order.orderType === 'Delivery'
   const activeSteps = isDelivery
     ? steps
     : steps.filter(s => s !== 'Out for Delivery')
@@ -87,10 +87,10 @@ export default function TrackOrderPage() {
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-6">
         <div className="space-y-0">
           {activeSteps.map((step, i) => {
-            const stepIndex  = steps.indexOf(step)
-            const isDone     = stepIndex < currentStep
-            const isCurrent  = stepIndex === currentStep
-            const isLast     = i === activeSteps.length - 1
+            const stepIndex = steps.indexOf(step)
+            const isDone = stepIndex < currentStep
+            const isCurrent = stepIndex === currentStep
+            const isLast = i === activeSteps.length - 1
 
             return (
               <div key={step} className="flex gap-4">
@@ -98,7 +98,7 @@ export default function TrackOrderPage() {
                 <div className="flex flex-col items-center">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 transition-all
                     ${isCurrent ? 'bg-orange-500 ring-4 ring-orange-500/20' :
-                      isDone    ? 'bg-green-500/20' : 'bg-zinc-800'
+                      isDone ? 'bg-green-500/20' : 'bg-zinc-800'
                     }`}>
                     {isDone ? '✓' : stepIcons[step]}
                   </div>
@@ -113,7 +113,7 @@ export default function TrackOrderPage() {
                 <div className="pb-8 pt-1.5">
                   <p className={`font-medium text-sm transition-colors
                     ${isCurrent ? 'text-orange-400' :
-                      isDone    ? 'text-green-400'  : 'text-zinc-500'
+                      isDone ? 'text-green-400' : 'text-zinc-500'
                     }`}>
                     {step}
                   </p>
@@ -160,6 +160,30 @@ export default function TrackOrderPage() {
               <span className="text-right max-w-48">{order.deliveryAddress}</span>
             </div>
           )}
+          {/* Rider Info — only shown when Out for Delivery */}
+          {order.rider?.name && order.status === 'Out for Delivery' && (
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-2xl p-5 mb-6">
+              <p className="text-purple-300 text-sm font-medium mb-4">🛵 Your delivery rider</p>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center shrink-0">
+                    <span className="text-lg">🛵</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-bold">{order.rider.name}</p>
+                    <p className="text-zinc-400 text-sm">{order.rider.phone}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => window.location.href = 'tel:' + order.rider.phone}
+                  className="flex items-center gap-2 bg-purple-500 hover:bg-purple-400 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors"
+                >
+                  📞 Call Rider
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between text-xs text-zinc-500">
             <span>Placed at</span>
             <span>{new Date(order.createdAt).toLocaleString()}</span>
