@@ -4,20 +4,21 @@ import socket from '../socket'
 import { useAuth } from '../context/AuthContext'
 import LoginPage from './LoginPage'
 import API_URL from '../config'
+import { useRef } from 'react'
 
 const statusColors = {
-  Pending:            'bg-yellow-500/10 text-yellow-400  border-yellow-500/20',
-  Preparing:          'bg-blue-500/10   text-blue-400    border-blue-500/20',
-  Ready:              'bg-green-500/10  text-green-400   border-green-500/20',
+  Pending: 'bg-yellow-500/10 text-yellow-400  border-yellow-500/20',
+  Preparing: 'bg-blue-500/10   text-blue-400    border-blue-500/20',
+  Ready: 'bg-green-500/10  text-green-400   border-green-500/20',
   'Out for Delivery': 'bg-purple-500/10 text-purple-400  border-purple-500/20',
-  Completed:          'bg-zinc-500/10   text-zinc-400    border-zinc-500/20',
+  Completed: 'bg-zinc-500/10   text-zinc-400    border-zinc-500/20',
 }
 
 const nextStatus = {
-  Pending:            'Preparing',
-  Preparing:          { Delivery: 'Out for Delivery', default: 'Ready' },
+  Pending: 'Preparing',
+  Preparing: { Delivery: 'Out for Delivery', default: 'Ready' },
   'Out for Delivery': 'Completed',
-  Ready:              'Completed',
+  Ready: 'Completed',
 }
 
 const getNextStatus = (order) => {
@@ -29,7 +30,7 @@ const getNextStatus = (order) => {
 const getStatusLabel = (order) => {
   if (order.status === 'Preparing' && order.orderType === 'Delivery') return '🛵 Out for Delivery'
   if (order.status === 'Preparing') return '🟢 Mark as Ready'
-  if (order.status === 'Pending')   return '🟡 Mark as Preparing'
+  if (order.status === 'Pending') return '🟡 Mark as Preparing'
   if (order.status === 'Ready' || order.status === 'Out for Delivery') return '✅ Mark as Completed'
   return null
 }
@@ -38,12 +39,12 @@ export default function DashboardPage() {
   const { isLoggedIn, adminLogout, isAdmin } = useAuth()
   const [loggedIn, setLoggedIn] = useState(isAdmin)
 
-  const [orders, setOrders]           = useState([])
-  const [filter, setFilter]           = useState('All')
+  const [orders, setOrders] = useState([])
+  const [filter, setFilter] = useState('All')
   const [newOrderIds, setNewOrderIds] = useState([])
-  const [riders, setRiders]           = useState([])
+  const [riders, setRiders] = useState([])
   const [assigningOrder, setAssigningOrder] = useState(null)
-  const [selectedRider, setSelectedRider]   = useState('')
+  const [selectedRider, setSelectedRider] = useState('')
 
   useEffect(() => {
     if (!loggedIn) return
@@ -59,6 +60,7 @@ export default function DashboardPage() {
     socket.on('new_order', (order) => {
       setOrders(prev => [order, ...prev])
       setNewOrderIds(prev => [...prev, order._id])
+      playNotificationSound()
       setTimeout(() => {
         setNewOrderIds(prev => prev.filter(id => id !== order._id))
       }, 3000)
@@ -79,8 +81,60 @@ export default function DashboardPage() {
     }
   }, [loggedIn])
 
-  const handleLogin  = () => setLoggedIn(true)
+  const handleLogin = () => setLoggedIn(true)
   const handleLogout = () => { adminLogout(); setLoggedIn(false) }
+
+  const audioCtxRef = useRef(null)
+
+  useEffect(() => {
+    const unlock = () => {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      }
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume()
+      }
+      document.removeEventListener('click', unlock)
+    }
+    document.addEventListener('click', unlock)
+    return () => document.removeEventListener('click', unlock)
+  }, [])
+
+  const playNotificationSound = () => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      }
+      const ctx = audioCtxRef.current
+      if (ctx.state === 'suspended') ctx.resume()
+
+      let time = ctx.currentTime
+      const beepDuration = 0.15
+      const silenceBetween = 0.1
+      const pauseBetween = 0.6
+      const totalDuration = 10
+
+      while (time < ctx.currentTime + totalDuration) {
+        for (let i = 0; i < 3; i++) {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.frequency.value = 880
+          osc.type = 'sine'
+          gain.gain.setValueAtTime(0, time)
+          gain.gain.linearRampToValueAtTime(0.4, time + 0.01)
+          gain.gain.exponentialRampToValueAtTime(0.001, time + beepDuration)
+          osc.start(time)
+          osc.stop(time + beepDuration)
+          time += beepDuration + silenceBetween
+        }
+        time += pauseBetween
+      }
+    } catch (err) {
+      console.error('Audio error:', err)
+    }
+  }
 
   const updateStatus = async (id, status) => {
     try {
@@ -100,8 +154,8 @@ export default function DashboardPage() {
     const rider = riders.find(r => r._id === selectedRider)
     try {
       await axios.patch(`${API_URL}/api/orders/${assigningOrder._id}/assign-rider`, {
-        riderId:    rider._id,
-        riderName:  rider.name,
+        riderId: rider._id,
+        riderName: rider.name,
         riderPhone: rider.phone
       })
       setAssigningOrder(null)
@@ -165,23 +219,23 @@ export default function DashboardPage() {
     win.document.close()
   }
 
-  const today          = new Date().toDateString()
-  const todayOrders    = orders.filter(o => new Date(o.createdAt).toDateString() === today)
-  const todayRevenue   = todayOrders.reduce((sum, o) => sum + o.total, 0)
+  const today = new Date().toDateString()
+  const todayOrders = orders.filter(o => new Date(o.createdAt).toDateString() === today)
+  const todayRevenue = todayOrders.reduce((sum, o) => sum + o.total, 0)
   const todayCompleted = todayOrders.filter(o => o.status === 'Completed').length
-  const todayPending   = todayOrders.filter(o => o.status === 'Pending').length
+  const todayPending = todayOrders.filter(o => o.status === 'Pending').length
 
   const filtered = filter === 'All'
     ? orders
     : orders.filter(o => o.status === filter)
 
   const counts = {
-    All:              orders.length,
-    Pending:          orders.filter(o => o.status === 'Pending').length,
-    Preparing:        orders.filter(o => o.status === 'Preparing').length,
-    Ready:            orders.filter(o => o.status === 'Ready').length,
+    All: orders.length,
+    Pending: orders.filter(o => o.status === 'Pending').length,
+    Preparing: orders.filter(o => o.status === 'Preparing').length,
+    Ready: orders.filter(o => o.status === 'Ready').length,
     'Out for Delivery': orders.filter(o => o.status === 'Out for Delivery').length,
-    Completed:        orders.filter(o => o.status === 'Completed').length,
+    Completed: orders.filter(o => o.status === 'Completed').length,
   }
 
   if (!loggedIn) return <LoginPage onLogin={handleLogin} />
@@ -192,7 +246,7 @@ export default function DashboardPage() {
       {/* Rider Assignment Modal */}
       {assigningOrder && (
         <>
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={() => setAssigningOrder(null)}/>
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50" onClick={() => setAssigningOrder(null)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4 pointer-events-none">
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm pointer-events-auto p-6">
               <h3 className="font-bold text-white text-lg mb-2">Assign Rider</h3>
@@ -221,7 +275,7 @@ export default function DashboardPage() {
                           ${selectedRider === rider._id ? 'border-orange-500 bg-orange-500' : 'border-zinc-600'}`}>
                           {selectedRider === rider._id && (
                             <svg className="w-3 h-3 text-white" viewBox="0 0 12 12" fill="none">
-                              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           )}
                         </div>
@@ -264,7 +318,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse"/>
+            <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
             <span className="text-zinc-400 text-xs hidden sm:block">Live</span>
           </div>
           <button onClick={handleLogout} className="text-sm text-zinc-500 hover:text-white transition-colors">
@@ -276,10 +330,10 @@ export default function DashboardPage() {
       {/* Daily Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
         {[
-          { label: "Today's Orders",   value: todayOrders.length,   icon: '📋' },
-          { label: "Today's Revenue",  value: `Rs. ${todayRevenue}`, icon: '💰' },
-          { label: 'Completed',        value: todayCompleted,        icon: '✅' },
-          { label: 'Pending',          value: todayPending,          icon: '⏳' },
+          { label: "Today's Orders", value: todayOrders.length, icon: '📋' },
+          { label: "Today's Revenue", value: `Rs. ${todayRevenue}`, icon: '💰' },
+          { label: 'Completed', value: todayCompleted, icon: '✅' },
+          { label: 'Pending', value: todayPending, icon: '⏳' },
         ].map(({ label, value, icon }) => (
           <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
             <p className="text-2xl mb-1">{icon}</p>

@@ -7,12 +7,13 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, LineChart, Line, CartesianGrid
 } from 'recharts'
+import { useSettings } from '../context/SettingsContext'
 
 const categories = ['Burger', 'Fries', 'Drink', 'Deal']
-const emptyForm  = { name: '', description: '', price: '', category: 'Burger', available: true, addons: [] }
+const emptyForm = { name: '', description: '', price: '', category: 'Burger', available: true, addons: [] }
 
 function AddOnInput({ onAdd }) {
-  const [name, setName]   = useState('')
+  const [name, setName] = useState('')
   const [price, setPrice] = useState('')
 
   const handleAdd = () => {
@@ -56,36 +57,53 @@ export default function AdminPage() {
   const navigate = useNavigate()
 
   // Menu state
-  const [menuItems, setMenuItems]       = useState([])
-  const [orders, setOrders]             = useState([])
-  const [form, setForm]                 = useState(emptyForm)
-  const [editingId, setEditingId]       = useState(null)
-  const [imageFile, setImageFile]       = useState(null)
+  const [menuItems, setMenuItems] = useState([])
+  const [orders, setOrders] = useState([])
+  const [form, setForm] = useState(emptyForm)
+  const [editingId, setEditingId] = useState(null)
+  const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState('')
-  const [saving, setSaving]             = useState(false)
-  const [activeTab, setActiveTab]       = useState('menu')
-  const [graphRange, setGraphRange]     = useState('weekly')
+  const [saving, setSaving] = useState(false)
+  const [activeTab, setActiveTab] = useState('menu')
+  const [graphRange, setGraphRange] = useState('weekly')
 
   // Delivery zone state
-  const [zones, setZones]                 = useState([])
-  const [zoneForm, setZoneForm]           = useState({ city: '', area: '', deliveryFee: '', _free: false })
+  const [zones, setZones] = useState([])
+  const [zoneForm, setZoneForm] = useState({ city: '', area: '', deliveryFee: '', _free: false })
   const [editingZoneId, setEditingZoneId] = useState(null)
-  const [savingZone, setSavingZone]       = useState(false)
+  const [savingZone, setSavingZone] = useState(false)
 
   // Rider state
-  const [riders, setRiders]           = useState([])
-  const [riderForm, setRiderForm]     = useState({ name: '', phone: '' })
+  const [riders, setRiders] = useState([])
+  const [riderForm, setRiderForm] = useState({ name: '', phone: '' })
   const [savingRider, setSavingRider] = useState(false)
+
+  const { settings, updateSetting } = useSettings()
+  const [savingSettings, setSavingSettings] = useState(false)
+  const [localSettings, setLocalSettings] = useState(null)
+
+  const [discountCodes, setDiscountCodes] = useState([])
+  const [codeForm, setCodeForm] = useState({
+    code: '', type: 'percentage', value: '', minOrder: '', maxUses: '', expiresAt: ''
+  })
+  const [savingCode, setSavingCode] = useState(false)
+  const [settingsSaved, setSettingsSaved] = useState(false)
+  const [settingsError, setSettingsError] = useState(false)
 
   useEffect(() => {
     if (!isLoggedIn) navigate('/dashboard')
   }, [isLoggedIn])
 
   useEffect(() => {
+    setLocalSettings(settings)
+  }, [settings])
+
+  useEffect(() => {
     fetchMenu()
     fetchOrders()
     fetchZones()
     fetchRiders()
+    fetchDiscountCodes()
   }, [])
 
   const fetchMenu = async () => {
@@ -106,6 +124,11 @@ export default function AdminPage() {
   const fetchRiders = async () => {
     const res = await axios.get(`${API_URL}/api/riders`)
     setRiders(res.data)
+  }
+
+  const fetchDiscountCodes = async () => {
+    const res = await axios.get(`${API_URL}/api/discount-codes`, { headers: authHeader })
+    setDiscountCodes(res.data)
   }
 
   // Menu handlers
@@ -154,12 +177,12 @@ export default function AdminPage() {
 
   const handleEdit = (item) => {
     setForm({
-      name:        item.name,
+      name: item.name,
       description: item.description || '',
-      price:       item.price,
-      category:    item.category,
-      available:   item.available,
-      addons:      item.addons || []
+      price: item.price,
+      category: item.category,
+      available: item.available,
+      addons: item.addons || []
     })
     setEditingId(item._id)
     setImagePreview(item.image || '')
@@ -193,8 +216,8 @@ export default function AdminPage() {
     setSavingZone(true)
     try {
       const payload = {
-        city:        zoneForm.city,
-        area:        zoneForm.area,
+        city: zoneForm.city,
+        area: zoneForm.area,
         deliveryFee: zoneForm._free ? 0 : Number(zoneForm.deliveryFee)
       }
       if (editingZoneId) {
@@ -237,10 +260,10 @@ export default function AdminPage() {
 
   const handleEditZone = (zone) => {
     setZoneForm({
-      city:        zone.city,
-      area:        zone.area,
+      city: zone.city,
+      area: zone.area,
       deliveryFee: zone.deliveryFee === 0 ? '' : zone.deliveryFee,
-      _free:       zone.deliveryFee === 0
+      _free: zone.deliveryFee === 0
     })
     setEditingZoneId(zone._id)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -276,9 +299,80 @@ export default function AdminPage() {
     fetchRiders()
   }
 
+  const handleSaveSettings = async () => {
+    setSavingSettings(true)
+    try {
+      const s = localSettings || settings
+      const pairs = [
+        ['isOpen', s.isOpen],
+        ['openTime', s.openTime],
+        ['closeTime', s.closeTime],
+        ['isBusy', s.isBusy],
+        ['busyMessage', s.busyMessage],
+        ['minDeliveryOrder', Number(s.minDeliveryOrder)]
+      ]
+      await Promise.all(
+        pairs.map(([key, value]) =>
+          axios.post(
+            `${API_URL}/api/settings`,
+            { key, value },
+            { headers: authHeader }
+          )
+        )
+      )
+      setSettingsSaved(true)
+      setTimeout(() => setSettingsSaved(false), 2000)
+    } catch (err) {
+      setSettingsError(true)
+      setTimeout(() => setSettingsError(false), 2000)
+    } finally {
+      setSavingSettings(false)
+    }
+  }
+
+  const handleCodeSubmit = async () => {
+    if (!codeForm.code || !codeForm.value) return alert('Code and value required')
+    setSavingCode(true)
+    try {
+      await axios.post(
+        `${API_URL}/api/discount-codes`,
+        {
+          ...codeForm,
+          value: Number(codeForm.value),
+          minOrder: Number(codeForm.minOrder) || 0,
+          maxUses: codeForm.maxUses ? Number(codeForm.maxUses) : null,
+          expiresAt: codeForm.expiresAt || null
+        },
+        { headers: authHeader }
+      )
+      setCodeForm({ code: '', type: 'percentage', value: '', minOrder: '', maxUses: '', expiresAt: '' })
+      fetchDiscountCodes()
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error saving code')
+    } finally {
+      setSavingCode(false)
+    }
+  }
+
+  const handleToggleCode = async (id) => {
+    await axios.patch(`${API_URL}/api/discount-codes/${id}/toggle`, {}, { headers: authHeader })
+    fetchDiscountCodes()
+  }
+
+  const handleDeleteCode = async (id) => {
+    if (!confirm('Delete this discount code?')) return
+    await axios.delete(`${API_URL}/api/discount-codes/${id}`, { headers: authHeader })
+    fetchDiscountCodes()
+  }
+
+  const handleToggleSoldOut = async (id) => {
+    await axios.patch(`${API_URL}/api/menu/${id}/soldout`, {}, { headers: authHeader })
+    fetchMenu()
+  }
+
   // Analytics
   const getSalesData = () => {
-    const now  = new Date()
+    const now = new Date()
     const days = graphRange === 'weekly' ? 7 : 30
     return Array.from({ length: days }, (_, i) => {
       const d = new Date(now)
@@ -290,8 +384,8 @@ export default function AdminPage() {
         new Date(o.createdAt).toDateString() === d.toDateString()
       )
       return {
-        name:    label,
-        orders:  dayOrders.length,
+        name: label,
+        orders: dayOrders.length,
         revenue: dayOrders.reduce((s, o) => s + o.total, 0)
       }
     })
@@ -299,7 +393,7 @@ export default function AdminPage() {
 
   const getCategoryData = () =>
     categories.map(cat => ({
-      name:  cat,
+      name: cat,
       count: orders.reduce((sum, o) =>
         sum + o.items.filter(i => {
           const mi = menuItems.find(m => m._id === (i.menuItem?._id || i.menuItem))
@@ -307,10 +401,10 @@ export default function AdminPage() {
         }).length, 0)
     }))
 
-  const salesData    = getSalesData()
+  const salesData = getSalesData()
   const totalRevenue = orders.reduce((s, o) => s + o.total, 0)
-  const totalOrders  = orders.length
-  const avgOrder     = totalOrders ? Math.round(totalRevenue / totalOrders) : 0
+  const totalOrders = orders.length
+  const avgOrder = totalOrders ? Math.round(totalRevenue / totalOrders) : 0
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null
@@ -353,7 +447,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
-        {['menu', 'analytics', 'delivery', 'riders'].map(tab => (
+        {['menu', 'analytics', 'delivery', 'riders', 'settings', 'discounts'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -363,10 +457,12 @@ export default function AdminPage() {
                 : 'bg-zinc-800 text-zinc-400 hover:text-white'
               }`}
           >
-            {tab === 'menu'      ? '🍔 Menu'           :
-             tab === 'analytics' ? '📊 Analytics'       :
-             tab === 'delivery'  ? '🛵 Delivery Zones'  :
-                                   '🧑‍💼 Riders'}
+            {tab === 'menu' ? '🍔 Menu' :
+              tab === 'analytics' ? '📊 Analytics' :
+                tab === 'delivery' ? '🛵 Delivery Zones' :
+                  tab === 'riders' ? '🧑‍💼 Riders' :
+                    tab === 'settings' ? '⚙️ Settings' :
+                      '🎟️ Discounts'}
           </button>
         ))}
       </div>
@@ -456,7 +552,7 @@ export default function AdminPage() {
               {imagePreview && (
                 <div className="md:col-span-2">
                   <p className="text-zinc-400 text-sm mb-2">Image preview</p>
-                  <img src={imagePreview} alt="preview" className="h-40 w-full object-cover rounded-xl"/>
+                  <img src={imagePreview} alt="preview" className="h-40 w-full object-cover rounded-xl" />
                 </div>
               )}
             </div>
@@ -494,12 +590,12 @@ export default function AdminPage() {
                 >
                   <div className="h-36 bg-zinc-800 flex items-center justify-center overflow-hidden">
                     {item.image
-                      ? <img src={item.image} alt={item.name} className="w-full h-full object-cover"/>
+                      ? <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                       : <span className="text-4xl">
-                          {item.category === 'Burger' ? '🍔' :
-                           item.category === 'Fries'  ? '🍟' :
-                           item.category === 'Drink'  ? '🥤' : '🎁'}
-                        </span>
+                        {item.category === 'Burger' ? '🍔' :
+                          item.category === 'Fries' ? '🍟' :
+                            item.category === 'Drink' ? '🥤' : '🎁'}
+                      </span>
                     }
                   </div>
                   <div className="p-4">
@@ -525,6 +621,12 @@ export default function AdminPage() {
                         onClick={() => handleDelete(item._id)}
                         className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs py-2 rounded-lg transition-colors"
                       >🗑️ Del</button>
+                      <button
+                        onClick={() => handleToggleSoldOut(item._id)}
+                        className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs py-2 rounded-lg transition-colors"
+                      >
+                        {item.soldOut ? '🟢 In Stock' : '❌ Sold Out'}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -539,9 +641,9 @@ export default function AdminPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Total orders',    value: totalOrders,           icon: '📋' },
-              { label: 'Total revenue',   value: `Rs. ${totalRevenue}`, icon: '💰' },
-              { label: 'Avg order value', value: `Rs. ${avgOrder}`,     icon: '📈' },
+              { label: 'Total orders', value: totalOrders, icon: '📋' },
+              { label: 'Total revenue', value: `Rs. ${totalRevenue}`, icon: '💰' },
+              { label: 'Avg order value', value: `Rs. ${avgOrder}`, icon: '📈' },
             ].map(({ label, value, icon }) => (
               <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
                 <p className="text-2xl mb-2">{icon}</p>
@@ -568,11 +670,11 @@ export default function AdminPage() {
             <h3 className="font-bold text-white mb-6">Revenue</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={salesData} barSize={graphRange === 'weekly' ? 32 : 12}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false}/>
-                <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false}/>
-                <YAxis tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false}/>
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#27272a' }}/>
-                <Bar dataKey="revenue" fill="#f97316" radius={[6, 6, 0, 0]}/>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#27272a' }} />
+                <Bar dataKey="revenue" fill="#f97316" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -581,11 +683,11 @@ export default function AdminPage() {
             <h3 className="font-bold text-white mb-6">Order volume</h3>
             <ResponsiveContainer width="100%" height={220}>
               <LineChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false}/>
-                <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false}/>
-                <YAxis tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false}/>
-                <Tooltip content={<CustomTooltip />}/>
-                <Line type="monotone" dataKey="orders" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316', r: 4 }} activeDot={{ r: 6 }}/>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Line type="monotone" dataKey="orders" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316', r: 4 }} activeDot={{ r: 6 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -594,11 +696,11 @@ export default function AdminPage() {
             <h3 className="font-bold text-white mb-6">Sales by category</h3>
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={getCategoryData()} barSize={40} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false}/>
-                <XAxis type="number" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false}/>
-                <YAxis type="category" dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} width={50}/>
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#27272a' }}/>
-                <Bar dataKey="count" fill="#f97316" radius={[0, 6, 6, 0]}/>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" horizontal={false} />
+                <XAxis type="number" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fill: '#71717a', fontSize: 12 }} axisLine={false} tickLine={false} width={50} />
+                <Tooltip content={<CustomTooltip />} cursor={{ fill: '#27272a' }} />
+                <Bar dataKey="count" fill="#f97316" radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -822,6 +924,261 @@ export default function AdminPage() {
                       >
                         🗑️
                       </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ── SETTINGS TAB ── */}
+      {activeTab === 'settings' && localSettings && (
+        <div className="space-y-6">
+
+          {/* Open / Closed */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h2 className="font-bold text-white text-lg mb-6">🕐 Opening Hours</h2>
+            <div className="space-y-4">
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium">Restaurant Status</p>
+                  <p className="text-zinc-500 text-sm">Manually open or close the restaurant</p>
+                </div>
+                <button
+                  onClick={() => setLocalSettings({ ...localSettings, isOpen: !localSettings.isOpen })}
+                  className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-colors
+              ${localSettings.isOpen
+                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    }`}
+                >
+                  {localSettings.isOpen ? '🟢 Open' : '🔴 Closed'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-zinc-400 text-sm block mb-2">Opening Time</label>
+                  <input
+                    type="time"
+                    value={localSettings.openTime}
+                    onChange={e => setLocalSettings({ ...localSettings, openTime: e.target.value })}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-zinc-400 text-sm block mb-2">Closing Time</label>
+                  <input
+                    type="time"
+                    value={localSettings.closeTime}
+                    onChange={e => setLocalSettings({ ...localSettings, closeTime: e.target.value })}
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Busy Mode */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h2 className="font-bold text-white text-lg mb-6">⏳ Busy Mode</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-white font-medium">Kitchen Busy</p>
+                  <p className="text-zinc-500 text-sm">Shows a wait time warning on the menu</p>
+                </div>
+                <button
+                  onClick={() => setLocalSettings({ ...localSettings, isBusy: !localSettings.isBusy })}
+                  className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-colors
+              ${localSettings.isBusy
+                      ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
+                      : 'bg-zinc-800 text-zinc-400 border border-zinc-700'
+                    }`}
+                >
+                  {localSettings.isBusy ? '⏳ Busy' : 'Normal'}
+                </button>
+              </div>
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Busy Message</label>
+                <input
+                  type="text"
+                  value={localSettings.busyMessage}
+                  onChange={e => setLocalSettings({ ...localSettings, busyMessage: e.target.value })}
+                  placeholder="e.g. Currently 30-45 min wait time"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Settings */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h2 className="font-bold text-white text-lg mb-6">🛵 Delivery Settings</h2>
+            <div>
+              <label className="text-zinc-400 text-sm block mb-2">Minimum Order for Delivery (Rs.)</label>
+              <input
+                type="number"
+                value={localSettings.minDeliveryOrder}
+                onChange={e => setLocalSettings({ ...localSettings, minDeliveryOrder: e.target.value })}
+                placeholder="0 = no minimum"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors"
+              />
+              <p className="text-zinc-600 text-xs mt-1">Set to 0 to disable minimum order requirement</p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleSaveSettings}
+            disabled={savingSettings}
+            className={`w-full font-bold py-3 rounded-xl transition-colors disabled:opacity-50
+    ${settingsSaved
+                ? 'bg-green-500 text-white'
+                : settingsError
+                  ? 'bg-red-500 text-white'
+                  : 'bg-orange-500 hover:bg-orange-400 text-white'
+              }`}
+          >
+            {savingSettings ? 'Saving...' : settingsSaved ? '✓ Settings Saved!' : settingsError ? '✗ Error saving' : 'Save All Settings'}
+          </button>
+        </div>
+      )}
+
+      {/* ── DISCOUNTS TAB ── */}
+      {activeTab === 'discounts' && (
+        <div className="space-y-8">
+
+          {/* Add Code Form */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
+            <h2 className="font-bold text-white text-lg mb-6">➕ Create Discount Code</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Code *</label>
+                <input
+                  type="text"
+                  value={codeForm.code}
+                  onChange={e => setCodeForm({ ...codeForm, code: e.target.value.toUpperCase() })}
+                  placeholder="e.g. WELCOME10"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors uppercase"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Type *</label>
+                <select
+                  value={codeForm.type}
+                  onChange={e => setCodeForm({ ...codeForm, type: e.target.value })}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
+                >
+                  <option value="percentage">Percentage (%)</option>
+                  <option value="fixed">Fixed Amount (Rs.)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">
+                  Value * {codeForm.type === 'percentage' ? '(%)' : '(Rs.)'}
+                </label>
+                <input
+                  type="number"
+                  value={codeForm.value}
+                  onChange={e => setCodeForm({ ...codeForm, value: e.target.value })}
+                  placeholder={codeForm.type === 'percentage' ? 'e.g. 10' : 'e.g. 100'}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Min Order (Rs.)</label>
+                <input
+                  type="number"
+                  value={codeForm.minOrder}
+                  onChange={e => setCodeForm({ ...codeForm, minOrder: e.target.value })}
+                  placeholder="0 = no minimum"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Max Uses</label>
+                <input
+                  type="number"
+                  value={codeForm.maxUses}
+                  onChange={e => setCodeForm({ ...codeForm, maxUses: e.target.value })}
+                  placeholder="Leave empty for unlimited"
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-sm block mb-2">Expiry Date</label>
+                <input
+                  type="date"
+                  value={codeForm.expiresAt}
+                  onChange={e => setCodeForm({ ...codeForm, expiresAt: e.target.value })}
+                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-orange-500 transition-colors"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleCodeSubmit}
+              disabled={savingCode}
+              className="mt-5 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-white font-bold px-6 py-3 rounded-xl transition-colors"
+            >
+              {savingCode ? 'Creating...' : 'Create Code'}
+            </button>
+          </div>
+
+          {/* Codes List */}
+          <div>
+            <h2 className="font-bold text-white text-lg mb-4">
+              Discount Codes ({discountCodes.length})
+            </h2>
+            {discountCodes.length === 0 ? (
+              <div className="text-center py-12 text-zinc-500">
+                <p className="text-3xl mb-3">🎟️</p>
+                <p>No discount codes created yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {discountCodes.map(code => (
+                  <div
+                    key={code._id}
+                    className={`bg-zinc-900 border rounded-2xl px-5 py-4 transition-all
+                ${code.active ? 'border-zinc-800' : 'border-zinc-700 opacity-60'}`}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap mb-2">
+                          <span className="font-black text-white text-lg tracking-wider">{code.code}</span>
+                          <span className="text-xs bg-orange-500/20 text-orange-400 px-2.5 py-1 rounded-full font-medium">
+                            {code.type === 'percentage' ? `${code.value}% off` : `Rs. ${code.value} off`}
+                          </span>
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium
+                      ${code.active ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                            {code.active ? 'Active' : 'Inactive'}
+                          </span>
+                        </div>
+                        <div className="flex gap-4 text-xs text-zinc-500 flex-wrap">
+                          {code.minOrder > 0 && <span>Min order: Rs. {code.minOrder}</span>}
+                          {code.maxUses && <span>Used: {code.usedCount}/{code.maxUses}</span>}
+                          {!code.maxUses && <span>Used: {code.usedCount} times</span>}
+                          {code.expiresAt && (
+                            <span>Expires: {new Date(code.expiresAt).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 shrink-0">
+                        <button
+                          onClick={() => handleToggleCode(code._id)}
+                          className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs px-3 py-2 rounded-lg transition-colors"
+                        >
+                          {code.active ? '🔴 Disable' : '🟢 Enable'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteCode(code._id)}
+                          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg transition-colors"
+                        >
+                          🗑️
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

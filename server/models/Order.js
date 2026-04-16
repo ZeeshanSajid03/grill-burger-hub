@@ -28,6 +28,8 @@ const orderSchema = new mongoose.Schema({
     enum: ['Takeaway', 'Dine-in', 'Delivery'],
     default: 'Takeaway'
   },
+  discountCode: { type: String, default: '' },
+  discountAmount: { type: Number, default: 0 },
   deliveryAddress: { type: String },
   deliveryCity: { type: String },
   deliveryArea: { type: String },

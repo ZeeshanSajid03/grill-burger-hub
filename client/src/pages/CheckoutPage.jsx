@@ -5,30 +5,37 @@ import emailjs from '@emailjs/browser'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import API_URL from '../config'
+import { useSettings } from '../context/SettingsContext'
 
-const EMAILJS_SERVICE_ID  = 'service_x74p1cr'
+const EMAILJS_SERVICE_ID = 'service_x74p1cr'
 const EMAILJS_TEMPLATE_ID = 'template_xovrjni'
-const EMAILJS_PUBLIC_KEY  = 'HQWQSC7t70SVrB4ak'
+const EMAILJS_PUBLIC_KEY = 'HQWQSC7t70SVrB4ak'
 
 export default function CheckoutPage() {
   const { customer } = useAuth()
   const { cartItems, totalPrice, clearCart } = useCart()
   const navigate = useNavigate()
+  const { settings } = useSettings()
 
   const [form, setForm] = useState({
-    customerName:    '',
-    customerPhone:   '',
-    orderType:       'Takeaway',
+    customerName: '',
+    customerPhone: '',
+    orderType: 'Takeaway',
     deliveryAddress: '',
-    email:           ''
+    email: ''
   })
-  const [placing, setPlacing]         = useState(false)
+  const [placing, setPlacing] = useState(false)
   const [placedOrder, setPlacedOrder] = useState(null)
 
-  const [zones, setZones]               = useState([])
+  const [zones, setZones] = useState([])
   const [selectedCity, setSelectedCity] = useState('')
   const [selectedArea, setSelectedArea] = useState('')
-  const [deliveryFee, setDeliveryFee]   = useState(0)
+  const [deliveryFee, setDeliveryFee] = useState(0)
+  const [discountCode, setDiscountCode] = useState('')
+  const [discountResult, setDiscountResult] = useState(null)
+  const [checkingCode, setCheckingCode] = useState(false)
+  const [discountError, setDiscountError] = useState('')
+
 
   useEffect(() => {
     axios.get(`${API_URL}/api/delivery-zones`)
@@ -37,7 +44,7 @@ export default function CheckoutPage() {
   }, [])
 
   const cities = [...new Set(zones.map(z => z.city))]
-  const areas  = zones.filter(z => z.city === selectedCity)
+  const areas = zones.filter(z => z.city === selectedCity)
 
   const handleCityChange = (city) => {
     setSelectedCity(city)
@@ -53,9 +60,9 @@ export default function CheckoutPage() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value })
 
-  const finalTotal = form.orderType === 'Delivery'
-    ? totalPrice + deliveryFee
-    : totalPrice
+  const subtotal = form.orderType === 'Delivery' ? totalPrice + deliveryFee : totalPrice
+  const discountAmt = discountResult?.discountAmount || 0
+  const finalTotal = subtotal - discountAmt
 
   const handleSubmit = async () => {
     if (!form.customerName.trim()) return alert('Please enter your name')
@@ -68,26 +75,31 @@ export default function CheckoutPage() {
     if (cartItems.length === 0) return alert('Your cart is empty')
 
     setPlacing(true)
+    if (form.orderType === 'Delivery' && settings.minDeliveryOrder > 0 && totalPrice < settings.minDeliveryOrder) {
+      return alert(`Minimum order for delivery is Rs. ${settings.minDeliveryOrder}`)
+    }
     try {
-      const token   = customer?.token || null
+      const token = customer?.token || null
       const headers = token ? { Authorization: `Bearer ${token}` } : {}
 
       const res = await axios.post(`${API_URL}/api/orders`, {
-        customerName:    form.customerName,
-        customerPhone:   form.customerPhone,
-        orderType:       form.orderType,
+        customerName: form.customerName,
+        customerPhone: form.customerPhone,
+        orderType: form.orderType,
         deliveryAddress: form.orderType === 'Delivery'
           ? `${form.deliveryAddress}, ${selectedArea}, ${selectedCity}`
           : '',
         deliveryCity: form.orderType === 'Delivery' ? selectedCity : '',
         deliveryArea: form.orderType === 'Delivery' ? selectedArea : '',
-        deliveryFee:  form.orderType === 'Delivery' ? deliveryFee  : 0,
+        deliveryFee: form.orderType === 'Delivery' ? deliveryFee : 0,
         items: cartItems.map(i => ({
           menuItem: i._id,
-          name:     i.name,
-          price:    i.price,
+          name: i.name,
+          price: i.price,
           quantity: i.quantity
         })),
+        discountCode: discountResult?.code || '',
+        discountAmount: discountResult?.discountAmount || 0,
         total: finalTotal
       }, { headers })
 
@@ -101,12 +113,12 @@ export default function CheckoutPage() {
           EMAILJS_SERVICE_ID,
           EMAILJS_TEMPLATE_ID,
           {
-            to_email:         form.email,
-            customer_name:    form.customerName,
-            order_number:     placed.orderNumber,
-            order_items:      itemsList,
-            order_total:      `Rs. ${finalTotal}`,
-            order_type:       form.orderType,
+            to_email: form.email,
+            customer_name: form.customerName,
+            order_number: placed.orderNumber,
+            order_items: itemsList,
+            order_total: `Rs. ${finalTotal}`,
+            order_type: form.orderType,
             delivery_address: form.orderType === 'Delivery'
               ? `${form.deliveryAddress}, ${selectedArea}, ${selectedCity}`
               : 'N/A'
@@ -122,6 +134,24 @@ export default function CheckoutPage() {
       alert('Something went wrong, please try again')
     } finally {
       setPlacing(false)
+    }
+  }
+
+  const handleApplyCode = async () => {
+    if (!discountCode.trim()) return
+    setCheckingCode(true)
+    setDiscountError('')
+    setDiscountResult(null)
+    try {
+      const res = await axios.post(`${API_URL}/api/discount-codes/validate`, {
+        code: discountCode,
+        orderTotal: subtotal
+      })
+      setDiscountResult(res.data)
+    } catch (err) {
+      setDiscountError(err.response?.data?.message || 'Invalid code')
+    } finally {
+      setCheckingCode(false)
     }
   }
 
@@ -220,7 +250,7 @@ export default function CheckoutPage() {
             <div className="grid grid-cols-3 gap-2">
               {[
                 { type: 'Takeaway', icon: '🥡' },
-                { type: 'Dine-in',  icon: '🍽️' },
+                { type: 'Dine-in', icon: '🍽️' },
                 { type: 'Delivery', icon: '🛵' }
               ].map(({ type, icon }) => (
                 <button
@@ -349,6 +379,39 @@ export default function CheckoutPage() {
                   ? <span className="text-green-400 font-medium">Free</span>
                   : <span className="text-white">Rs. {deliveryFee}</span>
                 }
+              </div>
+            )}
+
+            {/* Discount Code */}
+            <div className="pt-2">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={discountCode}
+                  onChange={e => { setDiscountCode(e.target.value.toUpperCase()); setDiscountResult(null); setDiscountError('') }}
+                  placeholder="Promo code"
+                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white placeholder-zinc-500 focus:outline-none focus:border-orange-500 transition-colors text-sm uppercase"
+                />
+                <button
+                  onClick={handleApplyCode}
+                  disabled={checkingCode || !discountCode.trim()}
+                  className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white text-sm font-medium px-4 py-2.5 rounded-xl transition-colors whitespace-nowrap"
+                >
+                  {checkingCode ? '...' : 'Apply'}
+                </button>
+              </div>
+              {discountResult && (
+                <p className="text-green-400 text-xs mt-2">✓ {discountResult.message}</p>
+              )}
+              {discountError && (
+                <p className="text-red-400 text-xs mt-2">{discountError}</p>
+              )}
+            </div>
+
+            {discountAmt > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-green-400">Discount ({discountResult.code})</span>
+                <span className="text-green-400">− Rs. {discountAmt}</span>
               </div>
             )}
 

@@ -11,6 +11,9 @@ const authRoutes     = require('./routes/auth');
 const customerRoutes = require('./routes/customer');
 const deliveryZoneRoutes = require('./routes/deliveryZones');
 const riderRoutes = require('./routes/riders');
+const settingsRoutes      = require('./routes/settings');
+const reviewRoutes        = require('./routes/reviews');
+const discountCodeRoutes  = require('./routes/discountCodes');
 
 const app        = express();
 const httpServer = http.createServer(app);
@@ -39,6 +42,9 @@ app.use('/api/auth',      authRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/delivery-zones', deliveryZoneRoutes);
 app.use('/api/riders', riderRoutes);
+app.use('/api/settings',       settingsRoutes);
+app.use('/api/reviews',        reviewRoutes);
+app.use('/api/discount-codes', discountCodeRoutes);
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);

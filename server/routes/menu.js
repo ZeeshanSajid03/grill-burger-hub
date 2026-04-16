@@ -80,4 +80,16 @@ router.patch('/:id/availability', auth, async (req, res) => {
     }
 });
 
+// Toggle sold out
+router.patch('/:id/soldout', auth, async (req, res) => {
+  try {
+    const item    = await MenuItem.findById(req.params.id)
+    item.soldOut  = !item.soldOut
+    await item.save()
+    res.json(item)
+  } catch (err) {
+    res.status(500).json({ message: err.message })
+  }
+});
+
 module.exports = router;

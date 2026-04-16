@@ -11,6 +11,7 @@ const menuItemSchema = new mongoose.Schema({
   },
   image:     { type: String },
   available: { type: Boolean, default: true },
+  soldOut:   { type: Boolean, default: false },
   addons: [
     {
       name:  { type: String, required: true },

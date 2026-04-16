@@ -6,7 +6,6 @@ const jwt = require('jsonwebtoken');
 // Place a new order
 router.post('/', async (req, res) => {
   try {
-    // Attach customer id if logged in
     let customerId = null;
     const token = req.headers.authorization?.split(' ')[1];
     if (token) {
@@ -27,6 +26,16 @@ router.post('/', async (req, res) => {
 
     const io = req.app.get('io');
     io.emit('new_order', saved);
+
+    // Use discount code if applied
+    if (req.body.discountCode) {
+      try {
+        await require('../models/DiscountCode').findOneAndUpdate(
+          { code: req.body.discountCode.toUpperCase() },
+          { $inc: { usedCount: 1 } }
+        )
+      } catch {}
+    }
 
     res.status(201).json(saved);
   } catch (err) {
