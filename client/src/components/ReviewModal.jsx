@@ -11,14 +11,18 @@ export default function ReviewModal({ item, orderId, onClose, onSubmitted }) {
   const [saving, setSaving]   = useState(false)
   const [done, setDone]       = useState(false)
 
+  // Get the correct menuItem ID
+  const menuItemId = item.menuItem?._id || item.menuItem || item._id
+
   const handleSubmit = async () => {
     if (!rating) return alert('Please select a rating')
+    if (!menuItemId) return alert('Could not identify menu item')
     setSaving(true)
     try {
       await axios.post(
         `${API_URL}/api/reviews`,
         {
-          menuItem:     item._id || item.menuItem,
+          menuItem:     menuItemId,
           customerName: customer?.name || 'Guest',
           rating,
           comment,
@@ -29,7 +33,8 @@ export default function ReviewModal({ item, orderId, onClose, onSubmitted }) {
       setDone(true)
       setTimeout(() => { onSubmitted(); onClose() }, 1500)
     } catch (err) {
-      console.error(err)
+      console.error('Review error:', err.response?.data || err.message)
+      alert(err.response?.data?.message || 'Error submitting review')
     } finally {
       setSaving(false)
     }
@@ -52,7 +57,6 @@ export default function ReviewModal({ item, orderId, onClose, onSubmitted }) {
                 <button onClick={onClose} className="text-zinc-500 hover:text-white text-2xl leading-none">×</button>
               </div>
 
-              {/* Stars */}
               <div className="flex justify-center gap-2 mb-6">
                 {[1,2,3,4,5].map(star => (
                   <button

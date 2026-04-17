@@ -89,6 +89,8 @@ export default function AdminPage() {
   const [savingCode, setSavingCode] = useState(false)
   const [settingsSaved, setSettingsSaved] = useState(false)
   const [settingsError, setSettingsError] = useState(false)
+  const [reviews, setReviews] = useState([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
 
   useEffect(() => {
     if (!isLoggedIn) navigate('/dashboard')
@@ -104,6 +106,7 @@ export default function AdminPage() {
     fetchZones()
     fetchRiders()
     fetchDiscountCodes()
+    fetchReviews()
   }, [])
 
   const fetchMenu = async () => {
@@ -129,6 +132,18 @@ export default function AdminPage() {
   const fetchDiscountCodes = async () => {
     const res = await axios.get(`${API_URL}/api/discount-codes`, { headers: authHeader })
     setDiscountCodes(res.data)
+  }
+
+  const fetchReviews = async () => {
+    setReviewsLoading(true)
+    try {
+      const res = await axios.get(`${API_URL}/api/reviews/all`)
+      setReviews(res.data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setReviewsLoading(false)
+    }
   }
 
   // Menu handlers
@@ -370,6 +385,12 @@ export default function AdminPage() {
     fetchMenu()
   }
 
+  const handleDeleteReview = async (id) => {
+    if (!confirm('Delete this review?')) return
+    await axios.delete(`${API_URL}/api/reviews/${id}`, { headers: authHeader })
+    fetchReviews()
+  }
+
   // Analytics
   const getSalesData = () => {
     const now = new Date()
@@ -447,7 +468,7 @@ export default function AdminPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
-        {['menu', 'analytics', 'delivery', 'riders', 'settings', 'discounts'].map(tab => (
+        {['menu', 'analytics', 'delivery', 'riders', 'settings', 'discounts', 'reviews'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -462,7 +483,8 @@ export default function AdminPage() {
                 tab === 'delivery' ? '🛵 Delivery Zones' :
                   tab === 'riders' ? '🧑‍💼 Riders' :
                     tab === 'settings' ? '⚙️ Settings' :
-                      '🎟️ Discounts'}
+                      tab === 'discounts' ? '🎟️ Discounts' :
+                        '⭐ Reviews'}
           </button>
         ))}
       </div>
@@ -1185,6 +1207,68 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        </div>
+      )}
+      {/* ── REVIEWS TAB ── */}
+      {activeTab === 'reviews' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-white text-lg">Customer Reviews ({reviews.length})</h2>
+            <button
+              onClick={fetchReviews}
+              className="text-sm bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-4 py-2 rounded-xl transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+
+          {reviewsLoading ? (
+            <div className="text-center py-12 text-zinc-500">
+              <p className="animate-pulse">Loading reviews...</p>
+            </div>
+          ) : reviews.length === 0 ? (
+            <div className="text-center py-12 text-zinc-500">
+              <p className="text-3xl mb-3">⭐</p>
+              <p>No reviews yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reviews.map(review => (
+                <div key={review._id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <span className="text-white font-medium">{review.customerName}</span>
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <span
+                              key={star}
+                              className={`text-sm ${star <= review.rating ? 'text-yellow-400' : 'text-zinc-700'}`}
+                            >★</span>
+                          ))}
+                        </div>
+                        <span className="text-zinc-500 text-xs">
+                          {review.menuItem?.name || 'Unknown item'}
+                        </span>
+                        <span className="text-zinc-600 text-xs">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      {review.comment && (
+                        <p className="text-zinc-400 text-sm">{review.comment}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteReview(review._id)}
+                      className="bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs px-3 py-2 rounded-lg transition-colors shrink-0"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

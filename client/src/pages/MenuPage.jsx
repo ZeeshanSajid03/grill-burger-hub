@@ -4,45 +4,23 @@ import { useCart } from '../context/CartContext'
 import { useSettings } from '../context/SettingsContext'
 import AddonsModal from '../components/AddonsModal'
 import API_URL from '../config'
+import StatusPopup from '../components/StatusPopup'
 
 const categories = ['All', 'Burger', 'Fries', 'Drink', 'Deal']
 
-function StarRating({ rating, count }) {
-  return (
-    <div className="flex items-center gap-1">
-      {[1,2,3,4,5].map(star => (
-        <span
-          key={star}
-          className={`text-xs ${star <= Math.round(rating) ? 'text-yellow-400' : 'text-zinc-600'}`}
-        >★</span>
-      ))}
-      {count > 0 && <span className="text-zinc-500 text-xs ml-1">({count})</span>}
-    </div>
-  )
-}
 
 export default function MenuPage() {
-  const [menuItems, setMenuItems]     = useState([])
-  const [ratings, setRatings]         = useState({})
+  const [menuItems, setMenuItems] = useState([])
   const [activeCategory, setActiveCategory] = useState('All')
-  const [loading, setLoading]         = useState(true)
-  const [modalItem, setModalItem]     = useState(null)
-  const { addToCart, setIsCartOpen }  = useCart()
-  const { settings }                  = useSettings()
+  const [loading, setLoading] = useState(true)
+  const [modalItem, setModalItem] = useState(null)
+  const { addToCart, setIsCartOpen } = useCart()
+  const { settings } = useSettings()
 
   useEffect(() => {
-    Promise.all([
-      axios.get(`${API_URL}/api/menu`),
-      axios.get(`${API_URL}/api/reviews/averages`)
-    ]).then(([menuRes, ratingsRes]) => {
-      setMenuItems(menuRes.data)
-      const ratingsMap = {}
-      ratingsRes.data.forEach(r => {
-        ratingsMap[r._id] = { avg: r.avgRating, count: r.count }
-      })
-      setRatings(ratingsMap)
-      setLoading(false)
-    }).catch(err => { console.error(err); setLoading(false) })
+    axios.get(`${API_URL}/api/menu`)
+      .then(res => { setMenuItems(res.data); setLoading(false) })
+      .catch(err => { console.error(err); setLoading(false) })
   }, [])
 
   const filtered = activeCategory === 'All'
@@ -50,7 +28,8 @@ export default function MenuPage() {
     : menuItems.filter(item => item.category === activeCategory)
 
   const handleAddToCart = (item) => {
-    if (!settings.isOpen) return
+    if (!isOpenNow) return
+    if (settings.isBusy) return
     if (item.soldOut) return
     if (item.addons && item.addons.length > 0) {
       setModalItem(item)
@@ -63,11 +42,11 @@ export default function MenuPage() {
   // Check if currently open based on time
   const checkIsOpenNow = () => {
     if (!settings.isOpen) return false
-    const now     = new Date()
+    const now = new Date()
     const current = now.getHours() * 60 + now.getMinutes()
     const [oh, om] = settings.openTime.split(':').map(Number)
     const [ch, cm] = settings.closeTime.split(':').map(Number)
-    const open  = oh * 60 + om
+    const open = oh * 60 + om
     const close = ch * 60 + cm
     return current >= open && current <= close
   }
@@ -85,23 +64,7 @@ export default function MenuPage() {
         <p className="text-zinc-400 text-lg">Fresh grilled burgers, crispy fries, ice cold drinks</p>
       </div>
 
-      {/* Closed Banner */}
-      {!isOpenNow && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-2xl px-6 py-4 mb-6 text-center">
-          <p className="text-red-400 font-bold text-lg">🔒 We're currently closed</p>
-          <p className="text-zinc-400 text-sm mt-1">
-            We're open {settings.openTime} – {settings.closeTime}
-          </p>
-        </div>
-      )}
-
-      {/* Busy Banner */}
-      {isOpenNow && settings.isBusy && (
-        <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-2xl px-6 py-4 mb-6 text-center">
-          <p className="text-yellow-400 font-bold">⏳ Kitchen is busy</p>
-          <p className="text-zinc-400 text-sm mt-1">{settings.busyMessage}</p>
-        </div>
-      )}
+      <StatusPopup settings={settings} />
 
       {/* Category Filter */}
       <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
@@ -139,7 +102,6 @@ export default function MenuPage() {
       {/* Menu Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {filtered.map(item => {
-          const rating   = ratings[item._id]
           const isSoldOut = item.soldOut
           return (
             <div
@@ -150,12 +112,12 @@ export default function MenuPage() {
               {/* Image */}
               <div className="h-48 bg-zinc-800 flex items-center justify-center text-6xl overflow-hidden relative">
                 {item.image
-                  ? <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform"/>
+                  ? <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                   : <span className="group-hover:scale-105 transition-transform">
-                      {item.category === 'Burger' ? '🍔' :
-                       item.category === 'Fries'  ? '🍟' :
-                       item.category === 'Drink'  ? '🥤' : '🎁'}
-                    </span>
+                    {item.category === 'Burger' ? '🍔' :
+                      item.category === 'Fries' ? '🍟' :
+                        item.category === 'Drink' ? '🥤' : '🎁'}
+                  </span>
                 }
                 {isSoldOut && (
                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -175,17 +137,16 @@ export default function MenuPage() {
                 {item.description && (
                   <p className="text-zinc-500 text-sm mb-2 leading-relaxed">{item.description}</p>
                 )}
-                {rating && (
-                  <div className="mb-3">
-                    <StarRating rating={rating.avg} count={rating.count}/>
-                  </div>
-                )}
+
                 <button
                   onClick={() => handleAddToCart(item)}
                   disabled={isSoldOut || !isOpenNow}
                   className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95 text-white font-semibold py-2.5 rounded-xl transition-all text-sm"
                 >
-                  {isSoldOut ? 'Sold Out' : !isOpenNow ? 'Closed' : 'Add to Cart'}
+                  {isSoldOut ? 'Sold Out' :
+                    !isOpenNow ? 'Closed' :
+                      settings.isBusy ? 'Kitchen Busy' :
+                        'Add to Cart'}
                 </button>
               </div>
             </div>

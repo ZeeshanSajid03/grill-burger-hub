@@ -12,7 +12,7 @@ const EMAILJS_TEMPLATE_ID = 'template_xovrjni'
 const EMAILJS_PUBLIC_KEY = 'HQWQSC7t70SVrB4ak'
 
 export default function CheckoutPage() {
-  const { customer } = useAuth()
+  const { customer, isCustomer } = useAuth()
   const { cartItems, totalPrice, clearCart } = useCart()
   const navigate = useNavigate()
   const { settings } = useSettings()
@@ -139,6 +139,13 @@ export default function CheckoutPage() {
 
   const handleApplyCode = async () => {
     if (!discountCode.trim()) return
+
+    // Must be signed in to use discount codes
+    if (!isCustomer) {
+      setDiscountError('Please sign in to use discount codes')
+      return
+    }
+
     setCheckingCode(true)
     setDiscountError('')
     setDiscountResult(null)

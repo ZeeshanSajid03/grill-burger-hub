@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import axios from 'axios'
 import socket from '../socket'
-import ReviewModal from '../components/ReviewModal'
 import { useAuth } from '../context/AuthContext'
 
 const steps = ['Pending', 'Preparing', 'Ready', 'Out for Delivery', 'Completed']
@@ -195,43 +194,6 @@ export default function TrackOrderPage() {
           </div>
         </div>
       </div>
-
-      {/* Review prompt — only for completed orders */}
-      {order.status === 'Completed' && isCustomer && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 mb-6">
-          <h3 className="font-bold text-white mb-1">How was your order?</h3>
-          <p className="text-zinc-400 text-sm mb-4">Rate the items you ordered</p>
-          <div className="space-y-2">
-            {order.items.map((item, i) => (
-              <div key={i} className="flex items-center justify-between">
-                <span className="text-zinc-300 text-sm">{item.name}</span>
-                {reviewedItems.includes(item.menuItem || item._id?.toString()) ? (
-                  <span className="text-green-400 text-xs">✓ Reviewed</span>
-                ) : (
-                  <button
-                    onClick={() => setReviewItem(item)}
-                    className="text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg transition-colors"
-                  >
-                    ★ Rate
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {reviewItem && (
-        <ReviewModal
-          item={reviewItem}
-          orderId={order._id}
-          onClose={() => setReviewItem(null)}
-          onSubmitted={() => {
-            setReviewedItems(prev => [...prev, reviewItem.menuItem || reviewItem._id?.toString()])
-            setReviewItem(null)
-          }}
-        />
-      )}
 
       <Link
         to="/"
