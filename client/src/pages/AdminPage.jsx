@@ -1248,7 +1248,7 @@ export default function AdminPage() {
                           ))}
                         </div>
                         <span className="text-zinc-500 text-xs">
-                          {review.menuItem?.name || 'Unknown item'}
+                          {review.order?.orderNumber || 'Unknown order'}
                         </span>
                         <span className="text-zinc-600 text-xs">
                           {new Date(review.createdAt).toLocaleDateString()}
