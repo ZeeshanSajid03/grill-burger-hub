@@ -3,16 +3,20 @@ const router  = express.Router();
 const Rider   = require('../models/Rider');
 const auth    = require('../middleware/auth');
 
-// Public — get all available riders
+// Public — only available riders (for checkout/assignment dropdown)
+// Returns limited fields only — no sensitive info
 router.get('/', async (req, res) => {
   try {
-    const riders = await Rider.find({ available: true }).sort({ createdAt: -1 });
+    const riders = await Rider.find({ available: true })
+      .select('name')
+      .sort({ createdAt: -1 });
     res.json(riders);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
+// Protected — get all riders with full details (admin only)
 router.get('/all', auth, async (req, res) => {
   try {
     const riders = await Rider.find().sort({ createdAt: -1 });
@@ -45,7 +49,7 @@ router.delete('/:id', auth, async (req, res) => {
 // Protected — toggle availability
 router.patch('/:id/availability', auth, async (req, res) => {
   try {
-    const rider    = await Rider.findById(req.params.id);
+    const rider     = await Rider.findById(req.params.id);
     rider.available = !rider.available;
     await rider.save();
     res.json(rider);

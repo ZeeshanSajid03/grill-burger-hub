@@ -115,7 +115,7 @@ export default function AdminPage() {
   }
 
   const fetchOrders = async () => {
-    const res = await axios.get(`${API_URL}/api/orders`)
+    const res = await axios.get(`${API_URL}/api/orders`, { headers: authHeader })
     setOrders(res.data)
   }
 
@@ -125,9 +125,9 @@ export default function AdminPage() {
   }
 
   const fetchRiders = async () => {
-  const res = await axios.get(`${API_URL}/api/riders/all`, { headers: authHeader })
-  setRiders(res.data)
-}
+    const res = await axios.get(`${API_URL}/api/riders/all`, { headers: authHeader })
+    setRiders(res.data)
+  }
 
   const fetchDiscountCodes = async () => {
     const res = await axios.get(`${API_URL}/api/discount-codes`, { headers: authHeader })
@@ -137,7 +137,7 @@ export default function AdminPage() {
   const fetchReviews = async () => {
     setReviewsLoading(true)
     try {
-      const res = await axios.get(`${API_URL}/api/reviews/all`)
+      const res = await axios.get(`${API_URL}/api/reviews/all`, { headers: authHeader })
       setReviews(res.data)
     } catch (err) {
       console.error(err)
