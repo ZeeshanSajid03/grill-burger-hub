@@ -125,9 +125,9 @@ export default function AdminPage() {
   }
 
   const fetchRiders = async () => {
-    const res = await axios.get(`${API_URL}/api/riders`)
-    setRiders(res.data)
-  }
+  const res = await axios.get(`${API_URL}/api/riders/all`, { headers: authHeader })
+  setRiders(res.data)
+}
 
   const fetchDiscountCodes = async () => {
     const res = await axios.get(`${API_URL}/api/discount-codes`, { headers: authHeader })

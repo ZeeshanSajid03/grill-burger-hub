@@ -6,6 +6,15 @@ const auth    = require('../middleware/auth');
 // Public — get all available riders
 router.get('/', async (req, res) => {
   try {
+    const riders = await Rider.find({ available: true }).sort({ createdAt: -1 });
+    res.json(riders);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/all', auth, async (req, res) => {
+  try {
     const riders = await Rider.find().sort({ createdAt: -1 });
     res.json(riders);
   } catch (err) {

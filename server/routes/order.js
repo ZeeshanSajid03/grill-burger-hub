@@ -43,8 +43,10 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all orders (dashboard)
-router.get('/', async (req, res) => {
+const auth = require('../middleware/auth');
+
+// Get all orders (dashboard) — protected
+router.get('/', auth, async (req, res) => {
   try {
     const orders = await Order.find().sort({ createdAt: -1 });
     res.json(orders);
@@ -53,10 +55,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Track by order number — public
+// Track by order number — public but limited fields
 router.get('/track/:orderNumber', async (req, res) => {
   try {
-    const order = await Order.findOne({ orderNumber: req.params.orderNumber });
+    const order = await Order.findOne(
+      { orderNumber: req.params.orderNumber },
+      'orderNumber status orderType items total createdAt deliveryAddress rider customerName'
+    );
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (err) {
@@ -65,7 +70,7 @@ router.get('/track/:orderNumber', async (req, res) => {
 });
 
 // Update order status
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', auth, async (req, res) => {
   try {
     const updated = await Order.findByIdAndUpdate(
       req.params.id,
@@ -81,7 +86,7 @@ router.patch('/:id', async (req, res) => {
 });
 
 // Delete order
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, async (req, res) => {
   try {
     await Order.findByIdAndDelete(req.params.id);
     const io = req.app.get('io');
@@ -93,7 +98,7 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Assign rider to order
-router.patch('/:id/assign-rider', async (req, res) => {
+router.patch('/:id/assign-rider', auth, async (req, res) => {
   try {
     const { riderId, riderName, riderPhone } = req.body;
     const updated = await Order.findByIdAndUpdate(

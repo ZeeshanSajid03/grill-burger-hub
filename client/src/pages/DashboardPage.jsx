@@ -36,7 +36,7 @@ const getStatusLabel = (order) => {
 }
 
 export default function DashboardPage() {
-  const { isLoggedIn, adminLogout, isAdmin } = useAuth()
+  const { isLoggedIn, adminLogout, isAdmin, adminHeader } = useAuth()
   const [loggedIn, setLoggedIn] = useState(isAdmin)
 
   const [orders, setOrders] = useState([])
@@ -49,13 +49,13 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!loggedIn) return
 
-    axios.get(`${API_URL}/api/orders`)
+    axios.get(`${API_URL}/api/orders`, { headers: adminHeader })
       .then(res => setOrders(res.data))
       .catch(console.error)
 
-    axios.get(`${API_URL}/api/riders`)
-      .then(res => setRiders(res.data))
-      .catch(console.error)
+    axios.get(`${API_URL}/api/riders/all`, { headers: adminHeader })
+  .then(res => setRiders(res.data))
+  .catch(console.error)
 
     socket.on('new_order', (order) => {
       setOrders(prev => [order, ...prev])

@@ -15,7 +15,7 @@ router.get('/order/:orderId', async (req, res) => {
 });
 
 // Get all reviews (admin)
-router.get('/all', async (req, res) => {
+router.get('/all', auth, async (req, res) => {
   try {
     const reviews = await Review.find()
       .populate('order', 'orderNumber customerName total')
