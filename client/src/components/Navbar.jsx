@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import CustomerAuthModal from './CustomerAuthModal'
+import { useToast } from '../context/ToastContext'
+import { useLocation } from 'react-router-dom'
 
 export default function Navbar() {
   const { totalItems, setIsCartOpen } = useCart()
@@ -10,8 +12,10 @@ export default function Navbar() {
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const navigate = useNavigate()
+  const { showToast } = useToast()
 
   const closeMenu = () => setMenuOpen(false)
+  const location = useLocation()
 
   return (
     <>
@@ -47,9 +51,32 @@ export default function Navbar() {
             <div className="hidden sm:flex items-center gap-3">
               {isAdmin && (
                 <>
-                  <Link to="/dashboard" className="text-sm text-zinc-400 hover:text-white transition-colors">Restaurant</Link>
-                  <Link to="/admin" className="text-sm text-zinc-400 hover:text-white transition-colors">Admin</Link>
-                  <button onClick={() => { adminLogout(); navigate('/') }} className="text-sm text-zinc-500 hover:text-white transition-colors">Logout</button>
+                  <Link
+                    to="/dashboard"
+                    className={`text-sm transition-colors
+        ${location.pathname === '/dashboard'
+                        ? 'text-white font-bold'
+                        : 'text-zinc-400 hover:text-white'
+                      }`}
+                  >
+                    Restaurant
+                  </Link>
+                  <Link
+                    to="/admin"
+                    className={`text-sm transition-colors
+        ${location.pathname === '/admin'
+                        ? 'text-white font-bold'
+                        : 'text-zinc-400 hover:text-white'
+                      }`}
+                  >
+                    Admin
+                  </Link>
+                  <button
+                    onClick={() => { adminLogout(); navigate('/'); showToast('Signed out', 'info') }}
+                    className="text-sm text-zinc-500 hover:text-white transition-colors"
+                  >
+                    Logout
+                  </button>
                 </>
               )}
               {isCustomer && !isAdmin && (
@@ -69,9 +96,9 @@ export default function Navbar() {
               onClick={() => setMenuOpen(!menuOpen)}
               className="sm:hidden flex flex-col justify-center items-center w-9 h-9 gap-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition-colors"
             >
-              <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`}/>
-              <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`}/>
-              <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`}/>
+              <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+              <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${menuOpen ? 'opacity-0' : ''}`} />
+              <span className={`block w-5 h-0.5 bg-white transition-all duration-300 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
             </button>
           </div>
         </div>
@@ -84,14 +111,22 @@ export default function Navbar() {
                 <Link
                   to="/dashboard"
                   onClick={closeMenu}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors
+    ${location.pathname === '/dashboard'
+                      ? 'bg-zinc-800 text-white font-bold'
+                      : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                    }`}
                 >
                   <span>🍽️</span> Restaurant Dashboard
                 </Link>
                 <Link
                   to="/admin"
                   onClick={closeMenu}
-                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors
+    ${location.pathname === '/admin'
+                      ? 'bg-zinc-800 text-white font-bold'
+                      : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
+                    }`}
                 >
                   <span>⚙️</span> Admin Panel
                 </Link>
@@ -117,7 +152,7 @@ export default function Navbar() {
                   <span>📋</span> My Orders
                 </Link>
                 <button
-                  onClick={() => { customerLogout(); closeMenu() }}
+                  onClick={() => { customerLogout(); showToast('Signed out', 'info'); closeMenu() }}
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-zinc-500 hover:bg-zinc-800 hover:text-white transition-colors"
                 >
                   <span>🚪</span> Logout

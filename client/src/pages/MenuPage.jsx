@@ -48,7 +48,14 @@ export default function MenuPage() {
     const [ch, cm] = settings.closeTime.split(':').map(Number)
     const open = oh * 60 + om
     const close = ch * 60 + cm
-    return current >= open && current <= close
+
+    if (close > open) {
+      // Normal hours e.g. 9am to 11pm — same day
+      return current >= open && current <= close
+    } else {
+      // Overnight hours e.g. 6pm to 2am — spans midnight
+      return current >= open || current <= close
+    }
   }
 
   const isOpenNow = checkIsOpenNow()

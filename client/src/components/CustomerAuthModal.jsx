@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
 export default function CustomerAuthModal({ onClose }) {
   const { customerLogin, customerRegister } = useAuth()
@@ -7,6 +8,7 @@ export default function CustomerAuthModal({ onClose }) {
   const [form, setForm]       = useState({ name: '', phone: '', password: '' })
   const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
+  const { showToast } = useToast()
 
   const handleSubmit = async () => {
     setError('')
@@ -14,9 +16,11 @@ export default function CustomerAuthModal({ onClose }) {
     try {
       if (mode === 'login') {
         await customerLogin(form.phone, form.password)
+        showToast('Welcome back!', 'success')
       } else {
         if (!form.name.trim()) return setError('Name is required')
         await customerRegister(form.name, form.phone, form.password)
+        showToast(`Welcome, ${form.name.split(' ')[0]}!`, 'success')
       }
       onClose()
     } catch (err) {

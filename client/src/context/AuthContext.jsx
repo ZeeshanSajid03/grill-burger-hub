@@ -17,9 +17,12 @@ export const AuthProvider = ({ children }) => {
 
   // Admin login
   const adminLogin = async (username, password) => {
-    const res = await axios.post(`${API_URL}/api/auth/login`, {
-      username, password
-    })
+    // Log out customer first if logged in
+    if (customer) {
+      localStorage.removeItem('gbh_customer')
+      setCustomer(null)
+    }
+    const res = await axios.post(`${API_URL}/api/auth/login`, { username, password })
     localStorage.setItem('gbh_admin_token', res.data.token)
     setAdminToken(res.data.token)
   }
@@ -31,19 +34,25 @@ export const AuthProvider = ({ children }) => {
 
   // Customer register
   const customerRegister = async (name, phone, password) => {
-    const res = await axios.post(`${API_URL}/api/customers/register`, {
-      name, phone, password
-    })
-    const data = { token: res.data.token, name: res.data.name, id: res.data.id }
-    localStorage.setItem('gbh_customer', JSON.stringify(data))
-    setCustomer(data)
+  // Log out admin first if logged in
+  if (adminToken) {
+    localStorage.removeItem('gbh_admin_token')
+    setAdminToken(null)
   }
+  const res = await axios.post(`${API_URL}/api/customers/register`, { name, phone, password })
+  const data = { token: res.data.token, name: res.data.name, id: res.data.id }
+  localStorage.setItem('gbh_customer', JSON.stringify(data))
+  setCustomer(data)
+}
 
   // Customer login
   const customerLogin = async (phone, password) => {
-    const res = await axios.post(`${API_URL}/api/customers/login`, {
-      phone, password
-    })
+    // Log out admin first if logged in
+    if (adminToken) {
+      localStorage.removeItem('gbh_admin_token')
+      setAdminToken(null)
+    }
+    const res = await axios.post(`${API_URL}/api/customers/login`, { phone, password })
     const data = { token: res.data.token, name: res.data.name, id: res.data.id }
     localStorage.setItem('gbh_customer', JSON.stringify(data))
     setCustomer(data)
@@ -54,11 +63,11 @@ export const AuthProvider = ({ children }) => {
     setCustomer(null)
   }
 
-  const isAdmin    = !!adminToken
+  const isAdmin = !!adminToken
   const isCustomer = !!customer
 
-  const adminHeader    = adminToken  ? { Authorization: `Bearer ${adminToken}` }   : {}
-  const customerHeader = customer    ? { Authorization: `Bearer ${customer.token}` } : {}
+  const adminHeader = adminToken ? { Authorization: `Bearer ${adminToken}` } : {}
+  const customerHeader = customer ? { Authorization: `Bearer ${customer.token}` } : {}
 
   return (
     <AuthContext.Provider value={{

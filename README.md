@@ -85,13 +85,6 @@ npm install
 npm run dev
 ```
 
-## 🔐 Admin Access
-```bash
-URL:      /dashboard
-Username: admin
-Password: grill2024
-```
-
 ## 📁 Project Structure
 ```bash
 grill-burger-hub/

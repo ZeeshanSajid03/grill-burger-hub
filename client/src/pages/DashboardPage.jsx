@@ -54,8 +54,8 @@ export default function DashboardPage() {
       .catch(console.error)
 
     axios.get(`${API_URL}/api/riders/all`, { headers: adminHeader })
-  .then(res => setRiders(res.data))
-  .catch(console.error)
+      .then(res => setRiders(res.data))
+      .catch(console.error)
 
     socket.on('new_order', (order) => {
       setOrders(prev => [order, ...prev])
@@ -138,7 +138,11 @@ export default function DashboardPage() {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.patch(`${API_URL}/api/orders/${id}`, { status })
+      await axios.patch(
+        `${API_URL}/api/orders/${id}`,
+        { status },
+        { headers: adminHeader }
+      )
     } catch (err) {
       console.error(err)
     }
@@ -150,28 +154,37 @@ export default function DashboardPage() {
   }
 
   const confirmRiderAssignment = async () => {
-    if (!selectedRider) return alert('Please select a rider')
-    const rider = riders.find(r => r._id === selectedRider)
-    try {
-      await axios.patch(`${API_URL}/api/orders/${assigningOrder._id}/assign-rider`, {
-        riderId: rider._id,
-        riderName: rider.name,
+  if (!selectedRider) return alert('Please select a rider')
+  const rider = riders.find(r => r._id === selectedRider)
+  try {
+    await axios.patch(
+      `${API_URL}/api/orders/${assigningOrder._id}/assign-rider`,
+      {
+        riderId:    rider._id,
+        riderName:  rider.name,
         riderPhone: rider.phone
-      })
-      setAssigningOrder(null)
-      setSelectedRider('')
-    } catch (err) {
-      console.error(err)
-    }
+      },
+      { headers: adminHeader }
+    )
+    setAssigningOrder(null)
+    setSelectedRider('')
+  } catch (err) {
+    console.error(err)
   }
+}
+  
+
 
   const deleteOrder = async (id) => {
-    try {
-      await axios.delete(`${API_URL}/api/orders/${id}`)
-    } catch (err) {
-      console.error(err)
-    }
+  try {
+    await axios.delete(
+      `${API_URL}/api/orders/${id}`,
+      { headers: adminHeader }
+    )
+  } catch (err) {
+    console.error(err)
   }
+}
 
   const printReceipt = (order) => {
     const win = window.open('', '_blank', 'width=400,height=600')

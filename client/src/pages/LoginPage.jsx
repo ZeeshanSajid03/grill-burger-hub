@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
 export default function LoginPage({ onLogin }) {
   const { login } = useAuth()
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { showToast } = useToast()
 
   const handleSubmit = async () => {
     if (!form.username || !form.password) return setError('Please fill in both fields')
@@ -13,6 +15,7 @@ export default function LoginPage({ onLogin }) {
     setError('')
     try {
       await login(form.username, form.password)
+      showToast('Welcome back, Admin!', 'success')
       onLogin()
     } catch {
       setError('Invalid username or password')

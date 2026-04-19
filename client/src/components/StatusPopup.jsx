@@ -4,7 +4,7 @@ function formatTime(time24) {
   if (!time24) return ''
   const [h, m] = time24.split(':').map(Number)
   const period = h >= 12 ? 'PM' : 'AM'
-  const hour   = h % 12 || 12
+  const hour = h % 12 || 12
   return `${hour}:${m.toString().padStart(2, '0')} ${period}`
 }
 
@@ -13,15 +13,24 @@ export default function StatusPopup({ settings }) {
 
   const checkIsOpenNow = () => {
     if (!settings.isOpen) return false
-    const now     = new Date()
+    const now = new Date()
     const current = now.getHours() * 60 + now.getMinutes()
     const [oh, om] = settings.openTime.split(':').map(Number)
     const [ch, cm] = settings.closeTime.split(':').map(Number)
-    return current >= oh * 60 + om && current <= ch * 60 + cm
+    const open = oh * 60 + om
+    const close = ch * 60 + cm
+
+    if (close > open) {
+      // Normal hours e.g. 9am to 11pm — same day
+      return current >= open && current <= close
+    } else {
+      // Overnight hours e.g. 6pm to 2am — spans midnight
+      return current >= open || current <= close
+    }
   }
 
   const isOpenNow = checkIsOpenNow()
-  const isBusy    = settings.isBusy && isOpenNow
+  const isBusy = settings.isBusy && isOpenNow
 
   // Reset dismissed state when status changes
   useEffect(() => {
